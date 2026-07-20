@@ -64,7 +64,11 @@ class MqttSubscribe extends Command
 
     private function getActiveDevice()
     {
-        return Device::where('status', 'active')->first();
+        $device = Device::where('status', 'active')->first();
+        if (!$device) {
+            $device = Device::first();
+        }
+        return $device;
     }
 
     private function handleAlertMessage($message)
