@@ -20,8 +20,8 @@ class MqttSubscribe extends Command
 
     public function handle()
     {
-        $server   = 'broker.emqx.io';
-        $port     = 1883;
+        $server   = env('MQTT_HOST', '127.0.0.1');
+        $port     = (int) env('MQTT_PORT', 1883);
 
         while (true) {
             $clientId = 'laravel_smartcane_client_' . uniqid();

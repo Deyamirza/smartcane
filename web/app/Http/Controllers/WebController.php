@@ -242,8 +242,8 @@ class WebController extends Controller
 
         // Kirim perintah MQTT ke ESP32 agar mematikan mode SOS pada alat
         try {
-            $server   = 'broker.emqx.io';
-            $port     = 1883;
+            $server   = env('MQTT_HOST', '127.0.0.1');
+            $port     = (int) env('MQTT_PORT', 1883);
             $clientId = 'laravel_command_publisher_' . uniqid();
             
             $mqtt = new \PhpMqtt\Client\MqttClient($server, $port, $clientId);
