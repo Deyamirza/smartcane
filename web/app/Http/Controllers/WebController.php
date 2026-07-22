@@ -292,6 +292,7 @@ class WebController extends Controller
                 'device_name' => $validated['device_name'],
                 'mac_address' => $validated['mac_address'],
                 'status' => $validated['status'],
+                'id_user' => auth()->id(),
             ]);
         }
 
