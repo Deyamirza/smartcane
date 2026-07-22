@@ -75,9 +75,8 @@ class TelegramService
     {
         $token = env('TELEGRAM_BOT_TOKEN');
         $chatId = env('TELEGRAM_CHAT_ID');
-        $messageId = $sos->telegram_message_id;
 
-        if (!$token || !$chatId || !$messageId) {
+        if (!$token || !$chatId) {
             return false;
         }
 
@@ -96,22 +95,21 @@ class TelegramService
                 "🗺️ *Lokasi Sebelumnya:* [Buka Peta]({$mapsUrl})";
 
         try {
-            $response = Http::post("https://api.telegram.org/bot{$token}/editMessageText", [
+            $response = Http::post("https://api.telegram.org/bot{$token}/sendMessage", [
                 'chat_id' => $chatId,
-                'message_id' => $messageId,
                 'text' => $text,
                 'parse_mode' => 'Markdown',
                 'disable_web_page_preview' => true,
             ]);
 
             if ($response->successful()) {
-                Log::info("Notifikasi Telegram SOS berhasil diperbarui ke status Selesai.");
+                Log::info("Notifikasi Telegram SOS Selesai berhasil dikirim.");
                 return true;
             } else {
-                Log::error("Gagal memperbarui notifikasi Telegram: " . $response->body());
+                Log::error("Gagal mengirim notifikasi Telegram SOS Selesai: " . $response->body());
             }
         } catch (\Exception $e) {
-            Log::error("Error saat memperbarui notifikasi Telegram: " . $e->getMessage());
+            Log::error("Error saat mengirim notifikasi Telegram SOS Selesai: " . $e->getMessage());
         }
 
         return false;

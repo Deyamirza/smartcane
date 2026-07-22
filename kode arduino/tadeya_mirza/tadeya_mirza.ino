@@ -3,12 +3,13 @@
 #include <WiFiManager.h>  // Install via Library Manager (by tzapu)
 #include <PubSubClient.h> // Install via Library Manager (by Nick O'Leary)
 #include <TinyGPS++.h>
+#include <HTTPClient.h>
 
 // --- HC-SR04 Pin Definitions ---
 const int trigPin = 5;
 const int echoPin = 18;
 long duration;
-float distanceCm;
+float distanceCm;	
 
 // --- Buzzer Pin Definition ---
 const int buzzerPin = 15; 
@@ -43,7 +44,7 @@ unsigned long lastPingTime = 0;
 const int pingInterval = 60; // Read distance every 60ms for smooth real-time response
 
 // --- MQTT Broker Settings ---
-const char* mqttServer = "broker.emqx.io"; 
+const char* mqttServer = "98.95.57.110";
 const int mqttPort = 1883;
 const char* topicAlerts = "esp32/tracker/alerts";
 const char* topicGPS    = "esp32/tracker/gps";
@@ -175,6 +176,15 @@ void loop() {
       // Safe zone
       digitalWrite(buzzerPin, LOW);     
       digitalWrite(vibeMotorPin, LOW);  
+      
+      // Transition from danger to safe: report safety immediately
+      if (lastProximityState) {
+        if (WiFi.status() == WL_CONNECTED && mqttClient.connected()) {
+          float sendDist = (distanceCm > 100) ? distanceCm : 150.0;
+          String payload = "{\"status\":\"DISTANCE_UPDATE\",\"distance\":" + String(sendDist) + "}";
+          mqttClient.publish(topicAlerts, payload.c_str());
+        }
+      }
       lastProximityState = false;
     }
   }
@@ -201,6 +211,17 @@ void loop() {
         String gpsPayload = "{\"lat\":" + String(gps.location.lat(), 6) + 
                             ",\"lng\":" + String(gps.location.lng(), 6) + "}";
         mqttClient.publish(topicGPS, gpsPayload.c_str());
+      }
+    }
+
+    // Periodic 10-second Distance sync (only when safe, to keep dashboard updated with safe status)
+    static unsigned long lastDistancePublish = 0;
+    if (millis() - lastDistancePublish > 10000) {
+      lastDistancePublish = millis();
+      if (!sosActive && !lastProximityState && mqttClient.connected()) {
+        float sendDist = (distanceCm > 100) ? distanceCm : 150.0;
+        String payload = "{\"status\":\"DISTANCE_UPDATE\",\"distance\":" + String(sendDist) + "}";
+        mqttClient.publish(topicAlerts, payload.c_str());
       }
     }
   }
@@ -252,3 +273,4 @@ void loop() {
     Serial.println(WiFi.status() == WL_CONNECTED ? " | Net: ONLINE" : " | Net: OFFLINE");
   }
 }
+

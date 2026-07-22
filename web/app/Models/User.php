@@ -13,14 +13,19 @@ class User extends Authenticatable
     protected $table = 'users';
     protected $primaryKey = 'id_user';
     
-    // Disable Laravel's default timestamps since we only have created_at
-    public $timestamps = false;
+    // Enable Laravel's default timestamps but only for created_at
+    public $timestamps = true;
+    const UPDATED_AT = null;
 
     protected $fillable = [
         'username',
         'email',
         'password_hash',
         'role',
+    ];
+
+    protected $casts = [
+        'created_at' => 'datetime',
     ];
 
     protected $hidden = [

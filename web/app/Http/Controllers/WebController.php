@@ -102,9 +102,6 @@ class WebController extends Controller
     public function dashboard()
     {
         $device = Device::where('status', 'active')->first();
-        if (!$device) {
-            $device = Device::first();
-        }
 
         // Get recent states
         $latestSensor = $device ? SensorLog::where('id_device', $device->id_device)->orderBy('recorded_at', 'desc')->first() : null;
@@ -239,6 +236,12 @@ class WebController extends Controller
             'status' => 'resolved',
             'resolved_at' => now(),
         ]);
+
+        // Kirim notifikasi Telegram
+        $device = Device::find($sos->id_device);
+        if ($device) {
+            \App\Services\TelegramService::resolveSosAlert($device, $sos);
+        }
 
         // Kirim perintah MQTT ke ESP32 agar mematikan mode SOS pada alat
         try {

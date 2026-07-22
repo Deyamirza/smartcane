@@ -528,36 +528,8 @@
     }
 
     function locateBrowser() {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(function(position) {
-                let lat = position.coords.latitude;
-                let lng = position.coords.longitude;
-                marker.setLatLng([lat, lng]);
-                map.setView([lat, lng], 16);
-                marker.getPopup().setContent("<b>Lokasi Anda (Browser)</b>").openPopup();
-                document.getElementById('val-gps').innerText = lat.toFixed(6) + ', ' + lng.toFixed(6);
-
-                // Auto-sync this location back to the database in background so it matches permanently!
-                fetch('{{ route("api.log_data") }}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        mac_address: '{{ $device ? $device->mac_address : "A0:B1:C2:D3:E4:F5" }}',
-                        latitude: lat,
-                        longitude: lng
-                    })
-                }).then(res => res.json())
-                  .then(data => console.log("Location auto-synced to DB:", data))
-                  .catch(err => console.error("Error auto-syncing location:", err));
-            }, function(error) {
-                console.warn("Browser Geolocation lookup failed: " + error.message);
-            });
-        }
-    }
-
+    console.log("Browser GPS dimatikan. Menggunakan GPS Smart Cane ESP32.");
+}
     // ID Tracking variables for AJAX Polling
     let lastSensorId = {{ $latestSensor ? $latestSensor->id_sensor : 0 }};
     let lastGpsId = {{ $latestGps ? $latestGps->id_gps : 0 }};

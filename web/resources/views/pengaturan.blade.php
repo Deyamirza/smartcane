@@ -248,7 +248,7 @@
                                     @endif
                                 </td>
                                 <td style="color: var(--text-muted); font-size: 13px;">
-                                    {{ date('d M Y H:i', strtotime($user->created_at)) }}
+                                    {{ $user->created_at->format('d M Y H:i') }}
                                 </td>
                             </tr>
                         @endforeach
