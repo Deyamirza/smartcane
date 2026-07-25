@@ -368,7 +368,7 @@
                             <input type="checkbox" name="remember">
                             <span>Ingat saya</span>
                         </label>
-                        <a href="#" class="forgot-password" onclick="alert('Silakan hubungi Administrator untuk mereset kata sandi Anda.')">Lupa password?</a>
+                        <a href="{{ route('password.request') }}" class="forgot-password">Lupa password?</a>
                     </div>
 
                     <button type="submit" class="btn-login">LOGIN</button>

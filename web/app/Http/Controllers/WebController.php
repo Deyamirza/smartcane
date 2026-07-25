@@ -340,4 +340,83 @@ class WebController extends Controller
 
         return back()->with('success', 'Semua data kejadian SOS berhasil dihapus.');
     }
+
+    /**
+     * Show forgot password form.
+     */
+    public function showForgotPassword()
+    {
+        if (Auth::check()) {
+            return redirect()->route('dashboard');
+        }
+        return view('forgot-password');
+    }
+
+    /**
+     * Verify username and email for password reset.
+     */
+    public function verifyForgotPassword(Request $request)
+    {
+        $validated = $request->validate([
+            'username' => 'required|string',
+            'email' => 'required|string|email',
+        ]);
+
+        $user = User::where('username', $validated['username'])
+                    ->where('email', $validated['email'])
+                    ->first();
+
+        if (!$user) {
+            return back()->withErrors([
+                'username' => 'Username atau Email tidak cocok dengan data kami.',
+            ])->onlyInput('username', 'email');
+        }
+
+        // Simpan id_user di session untuk reset
+        session(['reset_user_id' => $user->id_user]);
+
+        return redirect()->route('password.reset');
+    }
+
+    /**
+     * Show reset password form.
+     */
+    public function showResetPassword()
+    {
+        if (!session()->has('reset_user_id')) {
+            return redirect()->route('password.request')->withErrors([
+                'username' => 'Silakan verifikasi akun Anda terlebih dahulu.',
+            ]);
+        }
+        return view('reset-password');
+    }
+
+    /**
+     * Reset the user's password.
+     */
+    public function resetPassword(Request $request)
+    {
+        if (!session()->has('reset_user_id')) {
+            return redirect()->route('password.request');
+        }
+
+        $validated = $request->validate([
+            'password' => 'required|string|min:6|confirmed',
+        ]);
+
+        $userId = session('reset_user_id');
+        $user = User::find($userId);
+
+        if ($user) {
+            $user->update([
+                'password_hash' => Hash::make($validated['password']),
+            ]);
+        }
+
+        // Hapus session setelah berhasil reset
+        session()->forget('reset_user_id');
+
+        return redirect()->route('login')->with('success', 'Kata sandi berhasil diperbarui. Silakan login kembali.');
+    }
 }
+

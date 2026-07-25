@@ -12,6 +12,13 @@ Route::get('/register', [WebController::class, 'showRegister'])->name('register'
 Route::post('/register', [WebController::class, 'register']);
 Route::post('/logout', [WebController::class, 'logout'])->name('logout');
 
+// Forgot Password Routes
+Route::get('/forgot-password', [WebController::class, 'showForgotPassword'])->name('password.request');
+Route::post('/forgot-password', [WebController::class, 'verifyForgotPassword'])->name('password.verify');
+Route::get('/reset-password', [WebController::class, 'showResetPassword'])->name('password.reset');
+Route::post('/reset-password', [WebController::class, 'resetPassword'])->name('password.update');
+
+
 // Realtime Stream (EventSource SSE)
 Route::get('/realtime/stream', [RealtimeController::class, 'stream'])->name('realtime.stream');
 
