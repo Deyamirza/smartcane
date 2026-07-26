@@ -265,6 +265,10 @@ class WebController extends Controller
      */
     public function pengaturan()
     {
+        if (auth()->user()->role !== 'admin') {
+            return redirect()->route('dashboard')->with('error', 'Akses ditolak. Halaman Pengaturan hanya dapat diakses oleh Administrator.');
+        }
+
         $device = Device::first();
         $users = User::all();
 
@@ -279,6 +283,10 @@ class WebController extends Controller
      */
     public function updatePengaturan(Request $request)
     {
+        if (auth()->user()->role !== 'admin') {
+            return back()->with('error', 'Akses ditolak. Hanya Administrator yang dapat memperbarui pengaturan.');
+        }
+
         $device = Device::first();
         
         $validated = $request->validate([
