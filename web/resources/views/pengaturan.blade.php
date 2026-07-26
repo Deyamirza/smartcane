@@ -204,6 +204,17 @@
                     </div>
 
                     <div class="form-group">
+                        <label for="id_user">Pengguna / Pemilik Perangkat (Tunanetra)</label>
+                        <select id="id_user" name="id_user" class="form-control" required>
+                            @foreach ($users as $u)
+                                <option value="{{ $u->id_user }}" {{ $device && $device->id_user == $u->id_user ? 'selected' : '' }}>
+                                    {{ $u->username }} ({{ $u->email }})
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="form-group">
                         <label for="status">Status Pendaftaran</label>
                         <select id="status" name="status" class="form-control" required>
                             <option value="active" {{ $device && $device->status === 'active' ? 'selected' : '' }}>Aktif</option>

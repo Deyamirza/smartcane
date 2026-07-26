@@ -285,6 +285,7 @@ class WebController extends Controller
             'device_name' => 'required|string|max:255',
             'mac_address' => 'required|string|max:255',
             'status' => 'required|string|in:active,inactive',
+            'id_user' => 'nullable|exists:users,id_user',
         ]);
 
         if ($device) {
@@ -292,7 +293,7 @@ class WebController extends Controller
                 'device_name' => $validated['device_name'],
                 'mac_address' => $validated['mac_address'],
                 'status' => $validated['status'],
-                'id_user' => auth()->id(),
+                'id_user' => $validated['id_user'] ?? $device->id_user,
             ]);
         }
 
