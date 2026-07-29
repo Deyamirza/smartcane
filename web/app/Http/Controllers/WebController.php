@@ -69,14 +69,13 @@ class WebController extends Controller
             'username' => 'required|string|max:255|unique:users,username',
             'email' => 'required|string|email|max:255|unique:users,email',
             'password' => 'required|string|min:6|confirmed',
-            'role' => 'required|string|in:admin,family',
         ]);
 
         $user = User::create([
             'username' => $validated['username'],
             'email' => $validated['email'],
             'password_hash' => Hash::make($validated['password']),
-            'role' => $validated['role'],
+            'role' => 'family',
         ]);
 
         Auth::login($user);
@@ -260,53 +259,7 @@ class WebController extends Controller
         return back()->with('success', 'Kejadian SOS berhasil ditandai selesai.');
     }
 
-    /**
-     * Show device and user settings page.
-     */
-    public function pengaturan()
-    {
-        if (auth()->user()->role !== 'admin') {
-            return redirect()->route('dashboard')->with('error', 'Akses ditolak. Halaman Pengaturan hanya dapat diakses oleh Administrator.');
-        }
 
-        $device = Device::first();
-        $users = User::all();
-
-        return view('pengaturan', [
-            'device' => $device,
-            'users' => $users,
-        ]);
-    }
-
-    /**
-     * Update settings.
-     */
-    public function updatePengaturan(Request $request)
-    {
-        if (auth()->user()->role !== 'admin') {
-            return back()->with('error', 'Akses ditolak. Hanya Administrator yang dapat memperbarui pengaturan.');
-        }
-
-        $device = Device::first();
-        
-        $validated = $request->validate([
-            'device_name' => 'required|string|max:255',
-            'mac_address' => 'required|string|max:255',
-            'status' => 'required|string|in:active,inactive',
-            'id_user' => 'nullable|exists:users,id_user',
-        ]);
-
-        if ($device) {
-            $device->update([
-                'device_name' => $validated['device_name'],
-                'mac_address' => $validated['mac_address'],
-                'status' => $validated['status'],
-                'id_user' => $validated['id_user'] ?? $device->id_user,
-            ]);
-        }
-
-        return back()->with('success', 'Pengaturan perangkat berhasil diperbarui.');
-    }
 
     /**
      * Delete a single sensor log record.

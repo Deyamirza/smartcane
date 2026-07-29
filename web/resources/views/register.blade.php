@@ -260,7 +260,7 @@
         <div class="register-form-container">
             <div class="form-header">
                 <h2>Daftar Akun Baru</h2>
-                <p>Buat akun keluarga atau administrator baru.</p>
+                <p>Buat akun keluarga untuk memantau Smart Cane.</p>
             </div>
 
             <!-- Error Alerts -->
@@ -274,22 +274,13 @@
             <form action="{{ route('register') }}" method="POST">
                 @csrf
                 <div class="form-group">
-                    <input type="text" name="username" class="form-control" placeholder="Username" required value="{{ old('username') }}" autocomplete="off">
+                    <input type="text" name="username" class="form-control" placeholder="Nama / Username" required value="{{ old('username') }}" autocomplete="off">
                     <i class="fa-solid fa-user"></i>
                 </div>
 
                 <div class="form-group">
                     <input type="email" name="email" class="form-control" placeholder="Alamat Email" required value="{{ old('email') }}" autocomplete="off">
                     <i class="fa-solid fa-envelope"></i>
-                </div>
-
-                <div class="form-group">
-                    <select name="role" class="form-control" required style="padding-left: 45px;">
-                        <option value="" disabled selected>Pilih Hak Akses / Role</option>
-                        <option value="family" {{ old('role') === 'family' ? 'selected' : '' }}>Keluarga / Pendamping (Family)</option>
-                        <option value="admin" {{ old('role') === 'admin' ? 'selected' : '' }}>Administrator (Admin)</option>
-                    </select>
-                    <i class="fa-solid fa-users-gear"></i>
                 </div>
 
                 <div class="form-group">

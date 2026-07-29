@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('username');
             $table->string('email')->unique();
             $table->string('password_hash');
-            $table->enum('role', ['admin', 'family']);
+            $table->string('role')->default('family');
             $table->timestamp('created_at')->useCurrent();
         });
 

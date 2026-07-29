@@ -15,23 +15,16 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         // 1. Create Default Users
-        $admin = User::create([
-            'username' => 'admin',
-            'email' => 'admin@smartcane.com',
-            'password_hash' => Hash::make('admin123'),
-            'role' => 'admin',
-        ]);
-
         $family = User::create([
-            'username' => 'family',
-            'email' => 'family@smartcane.com',
-            'password_hash' => Hash::make('family123'),
+            'username' => 'keluarga',
+            'email' => 'keluarga@smartcane.com',
+            'password_hash' => Hash::make('keluarga123'),
             'role' => 'family',
         ]);
 
         // 2. Create Default Device
         Device::create([
-            'id_user' => $admin->id_user,
+            'id_user' => $family->id_user,
             'device_name' => 'SMARTCANE-001',
             'mac_address' => 'A0:B1:C2:D3:E4:F5',
             'status' => 'active',

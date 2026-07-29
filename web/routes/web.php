@@ -41,6 +41,4 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/sos/{id}', [WebController::class, 'deleteSos'])->name('sos.delete');
     Route::post('/sos/clear', [WebController::class, 'clearSos'])->name('sos.clear');
     
-    Route::get('/pengaturan', [WebController::class, 'pengaturan'])->name('pengaturan');
-    Route::post('/pengaturan/update', [WebController::class, 'updatePengaturan'])->name('pengaturan.update');
 });

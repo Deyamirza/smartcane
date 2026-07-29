@@ -297,14 +297,7 @@
                     <span>Status SOS</span>
                 </a>
             </li>
-            @if (Auth::user() && Auth::user()->role === 'admin')
-            <li class="sidebar-item {{ Route::is('pengaturan') ? 'active' : '' }}">
-                <a href="{{ route('pengaturan') }}">
-                    <i class="fa-solid fa-gear"></i>
-                    <span>Pengaturan</span>
-                </a>
-            </li>
-            @endif
+
             <li class="sidebar-item" style="margin-top: auto; border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 10px;">
                 <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display: none;">
                     @csrf
@@ -339,7 +332,7 @@
 
                 <div class="user-dropdown">
                     <span style="color: var(--text-main); font-size: 13px; font-weight: 600;">{{ Auth::user()->username }}</span>
-                    <span class="role-badge {{ Auth::user()->role === 'admin' ? 'admin' : 'family' }}" style="font-size: 10px; padding: 2px 6px;">{{ Auth::user()->role === 'admin' ? 'ADMIN' : 'KELUARGA' }}</span>
+                    <span class="role-badge family" style="font-size: 10px; padding: 2px 6px;">KELUARGA</span>
                     <img src="https://ui-avatars.com/api/?name={{ urlencode(Auth::user()->username) }}&background=00a896&color=fff" alt="Avatar">
                 </div>
             </div>

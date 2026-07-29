@@ -1,7 +1,7 @@
 #include <WiFi.h>
 #include <WebServer.h>
-#include <WiFiManager.h>  // Install via Library Manager (by tzapu)
-#include <PubSubClient.h> // Install via Library Manager (by Nick O'Leary)
+#include <WiFiManager.h>  
+#include <PubSubClient.h> 
 #include <TinyGPS++.h>
 #include <HTTPClient.h>
 
@@ -41,7 +41,7 @@ const int fastBeepInterval = 100;
 
 // --- Ultrasonic Sampling Timer ---
 unsigned long lastPingTime = 0;
-const int pingInterval = 60; // Read distance every 60ms for smooth real-time response
+const int pingInterval = 60; 
 
 // --- MQTT Broker Settings ---
 const char* mqttServer = "98.95.57.110";

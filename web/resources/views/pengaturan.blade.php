@@ -252,11 +252,7 @@
                                 </td>
                                 <td>{{ $user->email }}</td>
                                 <td>
-                                    @if ($user->role === 'admin')
-                                        <span class="role-badge admin">Administrator</span>
-                                    @else
-                                        <span class="role-badge family">Pendamping / Keluarga</span>
-                                    @endif
+                                    <span class="role-badge family">Pendamping / Keluarga</span>
                                 </td>
                                 <td style="color: var(--text-muted); font-size: 13px;">
                                     {{ $user->created_at->format('d M Y H:i') }}
