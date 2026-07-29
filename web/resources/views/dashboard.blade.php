@@ -348,7 +348,9 @@
                 <span class="value" id="val-gps" style="font-size: 13px; font-weight: 700; margin: 4px 0; word-break: break-all;">
                     {{ $latestGps ? sprintf('%.6f, %.6f', $latestGps->latitude, $latestGps->longitude) : '-6.200000, 106.816666' }}
                 </span>
-                <span class="sub-desc">Latitude, Longitude</span>
+                <span class="sub-desc" id="val-address" style="font-size: 11px; color: var(--text-muted); line-height: 1.3; display: block; margin-top: 2px;">
+                    Memuat alamat...
+                </span>
             </div>
         </div>
 
@@ -519,6 +521,73 @@
     const marker = L.marker([initialLat, initialLng], { icon: pulsingIcon }).addTo(map);
     marker.bindPopup("<b>Posisi Pengguna Smart Cane</b>").openPopup();
 
+    // Reverse Geocoding Function using OpenStreetMap Nominatim
+    let lastFetchedLat = null;
+    let lastFetchedLng = null;
+
+    function updateAddressUI(address, labelText) {
+        const addrElem = document.getElementById('val-address');
+        marker.bindPopup(`<b>${labelText}</b><br><div style="font-size: 12px; color: #4b5563; margin-top: 4px;"><i class="fa-solid fa-location-dot"></i> ${address}</div>`).openPopup();
+        if (addrElem) addrElem.innerText = address;
+    }
+
+    function fetchAddress(lat, lng, labelText = "Posisi Pengguna Smart Cane") {
+        if (lastFetchedLat !== null && Math.abs(lastFetchedLat - lat) < 0.00005 && Math.abs(lastFetchedLng - lng) < 0.00005) {
+            return;
+        }
+        lastFetchedLat = lat;
+        lastFetchedLng = lng;
+
+        const addrElem = document.getElementById('val-address');
+        if (addrElem) addrElem.innerText = "Mencari alamat...";
+
+        // 1. Primary API: BigDataCloud (CORS-friendly, reliable for domain names)
+        const bdcUrl = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=id`;
+        
+        fetch(bdcUrl)
+            .then(res => res.json())
+            .then(data => {
+                let addressParts = [];
+                if (data) {
+                    if (data.locality) addressParts.push(data.locality);
+                    if (data.city && data.city !== data.locality) addressParts.push(data.city);
+                    if (data.principalSubdivision) addressParts.push(data.principalSubdivision);
+                    if (data.countryName) addressParts.push(data.countryName);
+                }
+                
+                if (addressParts.length > 0) {
+                    updateAddressUI(addressParts.join(', '), labelText);
+                } else {
+                    fetchNominatimAddress(lat, lng, labelText);
+                }
+            })
+            .catch(() => {
+                fetchNominatimAddress(lat, lng, labelText);
+            });
+    }
+
+    function fetchNominatimAddress(lat, lng, labelText) {
+        const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&accept-language=id`;
+        fetch(url)
+            .then(res => res.json())
+            .then(data => {
+                if (data && data.display_name) {
+                    updateAddressUI(data.display_name, labelText);
+                } else {
+                    const addrElem = document.getElementById('val-address');
+                    if (addrElem) addrElem.innerText = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+                }
+            })
+            .catch(err => {
+                console.warn("Gagal mengambil alamat:", err);
+                const addrElem = document.getElementById('val-address');
+                if (addrElem) addrElem.innerText = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+            });
+    }
+
+    // Trigger address lookup for initial position
+    fetchAddress(initialLat, initialLng, "Posisi Pengguna Smart Cane");
+
     // Browser Geolocation Fallback: If no real GPS has been recorded yet (or matches default/testing fallback), use browser location
     let isFallback = (initialLat === -6.200000 && initialLng === 106.816666) || 
                       (initialLat === -6.211500 && initialLng === 106.822400);
@@ -528,8 +597,29 @@
     }
 
     function locateBrowser() {
-    console.log("Browser GPS dimatikan. Menggunakan GPS Smart Cane ESP32.");
-}
+        if ("geolocation" in navigator) {
+            navigator.geolocation.getCurrentPosition(
+                function(position) {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    
+                    const newLatLng = new L.LatLng(lat, lng);
+                    marker.setLatLng(newLatLng);
+                    map.panTo(newLatLng);
+                    
+                    document.getElementById('val-gps').innerText = lat.toFixed(6) + ', ' + lng.toFixed(6);
+                    fetchAddress(lat, lng, "Posisi Laptop/Perangkat Anda");
+                },
+                function(error) {
+                    console.warn("Gagal mendapatkan lokasi browser:", error.message);
+                    alert("Tidak dapat mendeteksi lokasi laptop. Pastikan izin lokasi (GPS/Location) pada browser telah diizinkan.");
+                },
+                { enableHighAccuracy: true, timeout: 10000 }
+            );
+        } else {
+            alert("Browser Anda tidak mendukung fitur Geolocation.");
+        }
+    }
     // ID Tracking variables for AJAX Polling
     let lastSensorId = {{ $latestSensor ? $latestSensor->id_sensor : 0 }};
     let lastGpsId = {{ $latestGps ? $latestGps->id_gps : 0 }};
@@ -578,6 +668,8 @@
                     const newLatLng = new L.LatLng(lat, lng);
                     marker.setLatLng(newLatLng);
                     map.panTo(newLatLng);
+
+                    fetchAddress(lat, lng, "Posisi Pengguna Smart Cane");
                 }
 
                 // Helper to translate Month names to Indonesian
