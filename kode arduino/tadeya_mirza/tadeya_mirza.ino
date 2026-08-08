@@ -5,45 +5,49 @@
 #include <TinyGPS++.h>
 #include <HTTPClient.h>
 
-// --- HC-SR04 Pin Definitions ---
-const int trigPin = 5;
-const int echoPin = 18;
-long duration;
-float distanceCm;	
+// --- Definisi Pin Sensor Ultrasonik Dual HC-SR04 ---
+// Sensor 1 (Bawah / Jangkauan Area Tanah)
+const int trigPinBawah = 5;
+const int echoPinBawah = 18;
+float distanceBawahCm = 400.0;
 
-// --- Buzzer Pin Definition ---
+// Sensor 2 (Tengah / Jangkauan Area Dada & Kepala)
+const int trigPinTengah = 19;
+const int echoPinTengah = 23;
+float distanceTengahCm = 400.0;
+
+// --- Definisi Pin Buzzer (Suara) ---
 const int buzzerPin = 15; 
 
-// --- Vibration Motor Pin Definition ---
+// --- Definisi Pin Motor Getar ---
 const int vibeMotorPin = 14; 
 
-// --- Button Pin Definition ---
-const int buttonPin = 27; // Internal pull-up
+// --- Definisi Pin Tombol SOS ---
+const int buttonPin = 27; // Menggunakan internal pull-up
 
-// --- NEO-6M GPS Pins ---
+// --- Definisi Pin Modul GPS NEO-6M ---
 #define RXD2 16  
 #define TXD2 17  
 const uint32_t GPSBaud = 9600;
 
 TinyGPSPlus gps;
- 
 
-// --- SOS Toggle Variables ---
+// --- Variabel State & Toggle SOS ---
 bool sosActive = false;         
 bool lastButtonState = HIGH;    
 unsigned long lastDebounceTime = 0;
 const unsigned long debounceDelay = 50; 
 
-// --- Timing variables for the SOS rapid beep ---
+// --- Variabel Waktu untuk Beep Cepat SOS ---
 unsigned long lastBeepToggle = 0;
 bool fastBeepState = false;
 const int fastBeepInterval = 100; 
 
-// --- Ultrasonic Sampling Timer ---
+// --- Timer Sampling Sensor Ultrasonik ---
 unsigned long lastPingTime = 0;
-const int pingInterval = 60; 
+const int pingInterval = 80; // Interval 80ms untuk pembacaan bersih kedua sensor
 
-// --- MQTT Broker Settings ---
+// --- Pengaturan Broker MQTT ---
 const char* mqttServer = "98.95.57.110";
 const int mqttPort = 1883;
 const char* topicAlerts = "esp32/tracker/alerts";
@@ -54,10 +58,23 @@ PubSubClient mqttClient(espClient);
 unsigned long lastMqttRetry = 0;
 unsigned long lastGpsPublish = 0;
 
-// Background background connection helper
+// Fungsi pembantu untuk membaca sensor ultrasonik secara bersih dengan batas waktu (timeout)
+float readDistanceCm(int trigPin, int echoPin) {
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+  
+  long duration = pulseIn(echoPin, HIGH, 30000); // Timeout 30ms mencegah sistem macet/freeze
+  if (duration == 0) return 400.0;
+  return duration * 0.0343 / 2.0;
+}
+
+// Fungsi pembantu untuk mengelola koneksi MQTT di latar belakang (background)
 void checkMQTTConnection() {
   if (!mqttClient.connected()) {
-    if (millis() - lastMqttRetry > 15000) { // Dropped to 15 seconds to stay out of the way
+    if (millis() - lastMqttRetry > 15000) {
       lastMqttRetry = millis();
       Serial.print("MQTT Disconnected. Retrying in background... ");
       String clientId = "ESP32Client-" + String(WiFi.macAddress());
@@ -74,28 +91,31 @@ void checkMQTTConnection() {
 void setup() {
   Serial.begin(115200);
   
-  // Initialize Peripherals Immediately
-  pinMode(trigPin, OUTPUT); 
-  pinMode(echoPin, INPUT);   
+  // Inisialisasi Perangkat Perifer
+  pinMode(trigPinBawah, OUTPUT); 
+  pinMode(echoPinBawah, INPUT);   
+  pinMode(trigPinTengah, OUTPUT); 
+  pinMode(echoPinTengah, INPUT);   
+
   pinMode(buzzerPin, OUTPUT);
   digitalWrite(buzzerPin, LOW); 
   pinMode(vibeMotorPin, OUTPUT);
   digitalWrite(vibeMotorPin, LOW); 
   pinMode(buttonPin, INPUT_PULLUP);
 
-  // Initialize GPS serial
+  // Inisialisasi Serial Komunikasi GPS
   Serial2.begin(GPSBaud, SERIAL_8N1, RXD2, TXD2);
 
-  Serial.println("\n--- Initializing WiFiManager ---");
+  Serial.println("\n--- Memulai WiFiManager ---");
   WiFiManager wm;
   
-  // 2-minute portal timeout. If no network, it bypasses to protect local usage.
+  // Timeout portal 2 menit. Jika tidak ada jaringan, lewati untuk mode lokal.
   wm.setConfigPortalTimeout(120);
   
   if (!wm.autoConnect("ESP32-SOS-Tracker")) {
-    Serial.println("WiFi Portal Timeout. Running in LOCAL-ONLY mode.");
+    Serial.println("WiFi Portal Timeout. Berjalan dalam mode LOCAL-ONLY (Offline).");
   } else {
-    Serial.println("WiFi connected successfully!");
+    Serial.println("WiFi berhasil terhubung!");
   }
 
   mqttClient.setServer(mqttServer, mqttPort);
@@ -103,7 +123,7 @@ void setup() {
 
 void loop() {
   // ====================================================
-  // CONDITION 1: STANDALONE BUTTON / SOS CONTROLLER (HIGHEST PRIORITY)
+  // KONDISI 1: KONTROLLER TOMBOL SOS (PRIORITAS TERTINGGI)
   // ====================================================
   bool currentButtonReading = digitalRead(buttonPin);
   if (currentButtonReading != lastButtonState) {
@@ -118,7 +138,7 @@ void loop() {
       Serial.print("SOS TOGGLED: ");
       Serial.println(sosActive ? "ACTIVE" : "DISABLED");
 
-      // Background cloud alert
+      // Pengiriman peringatan ke cloud (MQTT) di background
       if (WiFi.status() == WL_CONNECTED && mqttClient.connected()) {
         String payload = sosActive ? "{\"status\":\"SOS_ACTIVE\"}" : "{\"status\":\"SOS_DEACTIVATED\"}";
         mqttClient.publish(topicAlerts, payload.c_str());
@@ -130,28 +150,28 @@ void loop() {
   lastButtonState = currentButtonReading;
 
   // ====================================================
-  // CONDITION 2: ULTRASONIC SENSOR SAMPLING (TIMED FOR CLEAN READS)
+  // KONDISI 2: SAMPLING SENSOR ULTRASONIK DUAL (PEMBACAAN BERURUTAN)
   // ====================================================
   if (millis() - lastPingTime >= pingInterval) {
     lastPingTime = millis();
     
-    digitalWrite(trigPin, LOW);
-    delayMicroseconds(2);
-    digitalWrite(trigPin, HIGH);
-    delayMicroseconds(10);
-    digitalWrite(trigPin, LOW);
+    // Baca Sensor 1 (Bawah)
+    distanceBawahCm = readDistanceCm(trigPinBawah, echoPinBawah); // Menerima nilai jarak bawah
     
-    duration = pulseIn(echoPin, HIGH, 30000); // 30ms timeout prevents freezing if sensor unplugged
-    distanceCm = duration * 0.0343 / 2;
+    // Jeda singkat agar gelombang suara sensor 1 mereda sebelum memicu sensor 2
+    delayMicroseconds(5000); 
+    
+    // Baca Sensor 2 (Tengah)
+    distanceTengahCm = readDistanceCm(trigPinTengah, echoPinTengah); // Menerima nilai jarak tengah
   }
 
   // ====================================================
-  // CONDITION 3: OUTPUT HARDWARE CONTROLLER (ACTS INSTANTLY)
+  // KONDISI 3: KONTROLLER HARDWARE OUTPUT (BUZZER & MOTOR GETAR)
   // ====================================================
   static bool lastProximityState = false;
 
   if (sosActive) {
-    // --- SOS Mode Active: Fast Beep Override, Motor OFF ---
+    // --- Mode SOS Aktif: Buzzer Beep Cepat, Motor Getar OFF ---
     digitalWrite(vibeMotorPin, LOW); 
     if (millis() - lastBeepToggle >= fastBeepInterval) {
       lastBeepToggle = millis();
@@ -160,28 +180,44 @@ void loop() {
     }
   } 
   else {
-    // --- Proximity Mode Active: Check Distance Constraints ---
-    if (distanceCm > 0 && distanceCm <= 100) {
-      digitalWrite(buzzerPin, HIGH);    
+    // --- Mode Deteksi Jarak (Proximity) Aktif: Cek Batas Jarak Kedua Sensor ---
+    bool dangerBawah  = (distanceBawahCm > 0 && distanceBawahCm <= 100);
+    bool dangerTengah = (distanceTengahCm > 0 && distanceTengahCm <= 100);
+
+ 
+    // Jika ada rintangan bahaya (jarak <= 100cm)
+    if (dangerBawah || dangerTengah) {
+      digitalWrite(buzzerPin, HIGH);   
+      // Memerintahkan Buzzer Menyala (HIGH) 
       digitalWrite(vibeMotorPin, HIGH); 
-      
+      // Memerintahkan Motor Getar Menyala (HIGH)
+
+    
       if (!lastProximityState) { 
         if (WiFi.status() == WL_CONNECTED && mqttClient.connected()) {
-          String payload = "{\"status\":\"PROXIMITY_ALARM\",\"distance\":" + String(distanceCm) + "}";
+          float minDist = min(distanceBawahCm, distanceTengahCm);
+          String pos = (dangerBawah && dangerTengah) ? "BOTH" : (dangerTengah ? "MIDDLE" : "BOTTOM");
+          String payload = "{\"status\":\"PROXIMITY_ALARM\",\"distance\":" + String(minDist) + 
+                           ",\"position\":\"" + pos + 
+                           "\",\"dist_bawah\":" + String(distanceBawahCm) + 
+                           ",\"dist_tengah\":" + String(distanceTengahCm) + "}";
           mqttClient.publish(topicAlerts, payload.c_str());
         }
         lastProximityState = true;
       }
     } else {
-      // Safe zone
+      // Zona Aman (Tidak ada rintangan)
       digitalWrite(buzzerPin, LOW);     
       digitalWrite(vibeMotorPin, LOW);  
       
-      // Transition from danger to safe: report safety immediately
+      // Transisi dari zona bahaya ke aman: laporkan status aman ke cloud
       if (lastProximityState) {
         if (WiFi.status() == WL_CONNECTED && mqttClient.connected()) {
-          float sendDist = (distanceCm > 100) ? distanceCm : 150.0;
-          String payload = "{\"status\":\"DISTANCE_UPDATE\",\"distance\":" + String(sendDist) + "}";
+          float minSafeDist = min(distanceBawahCm, distanceTengahCm);
+          float sendDist = (minSafeDist > 100) ? minSafeDist : 150.0;
+          String payload = "{\"status\":\"DISTANCE_UPDATE\",\"distance\":" + String(sendDist) + 
+                           ",\"dist_bawah\":" + String(distanceBawahCm) + 
+                           ",\"dist_tengah\":" + String(distanceTengahCm) + "}";
           mqttClient.publish(topicAlerts, payload.c_str());
         }
       }
@@ -190,21 +226,21 @@ void loop() {
   }
 
   // ====================================================
-  // CONDITION 4: BACKGROUND TASKS (GPS & NETWORK LOGIC)
+  // KONDISI 4: TUGAS LATAR BELAKANG (LOGIKA GPS & JARINGAN)
   // ====================================================
   
-  // Read GPS serial buffer continuously
+  // Membaca data serial GPS secara terus-menerus
   while (Serial2.available() > 0) {
-    char c=Serial2.read();
+    char c = Serial2.read();
     gps.encode(c);
   }
 
-  // Handle MQTT client internals & reconnects safely if WiFi is up
+  // Kelola koneksi MQTT & rekonfigurasi jika WiFi terhubung
   if (WiFi.status() == WL_CONNECTED) {
     checkMQTTConnection();
     mqttClient.loop();
     
-    // Periodic 10-second GPS cloud sync
+    // Sinkronisasi data lokasi GPS ke cloud setiap 10 detik
     if (millis() - lastGpsPublish > 10000) {
       lastGpsPublish = millis();
       if (gps.location.isValid() && mqttClient.connected()) {
@@ -214,24 +250,29 @@ void loop() {
       }
     }
 
-    // Periodic 10-second Distance sync (only when safe, to keep dashboard updated with safe status)
+    // Sinkronisasi pembaruan jarak berkala setiap 10 detik (hanya saat aman)
     static unsigned long lastDistancePublish = 0;
     if (millis() - lastDistancePublish > 10000) {
       lastDistancePublish = millis();
       if (!sosActive && !lastProximityState && mqttClient.connected()) {
-        float sendDist = (distanceCm > 100) ? distanceCm : 150.0;
-        String payload = "{\"status\":\"DISTANCE_UPDATE\",\"distance\":" + String(sendDist) + "}";
+        float minSafeDist = min(distanceBawahCm, distanceTengahCm);
+        float sendDist = (minSafeDist > 100) ? minSafeDist : 150.0;
+        String payload = "{\"status\":\"DISTANCE_UPDATE\",\"distance\":" + String(sendDist) +  
+                         ",\"dist_bawah\":" + String(distanceBawahCm) + 
+                         ",\"dist_tengah\":" + String(distanceTengahCm) + "}";
         mqttClient.publish(topicAlerts, payload.c_str());
       }
     }
   }
 
-  // Quick Serial Terminal diagnostics printout every 4 seconds
+  // Cetak diagnostik sistem ke Serial Monitor setiap 4 detik
   static unsigned long lastPrint = 0;
   if (millis() - lastPrint > 4000) {
     lastPrint = millis();
-    Serial.print("[SYSTEM OK] Distance: "); 
-    Serial.print(distanceCm); 
+    Serial.print("[SYSTEM OK] Dist Bawah: "); 
+    Serial.print(distanceBawahCm); 
+    Serial.print("cm | Dist Tengah: ");
+    Serial.print(distanceTengahCm);
     Serial.print("cm");
     
     // Status SOS
@@ -273,4 +314,3 @@ void loop() {
     Serial.println(WiFi.status() == WL_CONNECTED ? " | Net: ONLINE" : " | Net: OFFLINE");
   }
 }
-
