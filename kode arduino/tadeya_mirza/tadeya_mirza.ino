@@ -214,8 +214,7 @@ void loop() {
       if (lastProximityState) {
         if (WiFi.status() == WL_CONNECTED && mqttClient.connected()) {
           float minSafeDist = min(distanceBawahCm, distanceTengahCm);
-          float sendDist = (minSafeDist > 100) ? minSafeDist : 150.0;
-          String payload = "{\"status\":\"DISTANCE_UPDATE\",\"distance\":" + String(sendDist) + 
+          String payload = "{\"status\":\"DISTANCE_UPDATE\",\"distance\":" + String(minSafeDist) + 
                            ",\"dist_bawah\":" + String(distanceBawahCm) + 
                            ",\"dist_tengah\":" + String(distanceTengahCm) + "}";
           mqttClient.publish(topicAlerts, payload.c_str());
@@ -256,8 +255,7 @@ void loop() {
       lastDistancePublish = millis();
       if (!sosActive && !lastProximityState && mqttClient.connected()) {
         float minSafeDist = min(distanceBawahCm, distanceTengahCm);
-        float sendDist = (minSafeDist > 100) ? minSafeDist : 150.0;
-        String payload = "{\"status\":\"DISTANCE_UPDATE\",\"distance\":" + String(sendDist) +  
+        String payload = "{\"status\":\"DISTANCE_UPDATE\",\"distance\":" + String(minSafeDist) +  
                          ",\"dist_bawah\":" + String(distanceBawahCm) + 
                          ",\"dist_tengah\":" + String(distanceTengahCm) + "}";
         mqttClient.publish(topicAlerts, payload.c_str());
