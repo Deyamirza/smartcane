@@ -121,9 +121,7 @@ class MqttSubscribe extends Command
         } 
         elseif ($status === 'SOS_DEACTIVATED') {
             // Resolve all active SOS events
-            $activeSosEvents = SosEvent::where('id_device', $device->id_device)
-                ->where('status', 'active')
-                ->get();
+            $activeSosEvents = SosEvent::where('status', 'active')->get();
 
             foreach ($activeSosEvents as $sos) {
                 \App\Services\TelegramService::resolveSosAlert($device, $sos);

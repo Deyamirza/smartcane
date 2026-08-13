@@ -105,7 +105,8 @@ class WebController extends Controller
         // Get recent states
         $latestSensor = $device ? SensorLog::where('id_device', $device->id_device)->orderBy('recorded_at', 'desc')->first() : null;
         $latestGps = $device ? GpsLog::where('id_device', $device->id_device)->orderBy('recorded_at', 'desc')->first() : null;
-        $latestSos = $device ? SosEvent::where('id_device', $device->id_device)->orderBy('triggered_at', 'desc')->first() : null;
+        $activeSos = $device ? SosEvent::where('id_device', $device->id_device)->where('status', 'active')->first() : null;
+        $latestSos = $activeSos ? $activeSos : ($device ? SosEvent::where('id_device', $device->id_device)->orderBy('id_sos', 'desc')->first() : null);
 
         // Calculate device connection state
         $isOnline = false;
