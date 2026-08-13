@@ -229,22 +229,21 @@ class WebController extends Controller
     /**
      * Resolve/Acknowledge an SOS event.
      */
-    public function resolveSos($id)
+    public function resolveSos($id = null)
     {
-        $sos = SosEvent::findOrFail($id);
+        $activeSos = SosEvent::where('status', 'active')->first();
+        
+        if ($activeSos) {
+            $device = Device::find($activeSos->id_device) ?? Device::first();
+            if ($device) {
+                \App\Services\TelegramService::resolveSosAlert($device, $activeSos);
+            }
 
-        // Hanya kirim notifikasi Telegram jika status belum 'resolved' (mencegah notifikasi duplikat)
-        if ($sos->status !== 'resolved') {
-            $sos->update([
+            // Direct SQL Update: Paksa SEMUA kejadian SOS aktif di database menjadi resolved secara instan
+            SosEvent::where('status', 'active')->update([
                 'status' => 'resolved',
                 'resolved_at' => now(),
             ]);
-
-            // Kirim notifikasi Telegram
-            $device = Device::find($sos->id_device);
-            if ($device) {
-                \App\Services\TelegramService::resolveSosAlert($device, $sos);
-            }
         }
 
         // Kirim perintah MQTT ke ESP32 agar mematikan mode SOS pada alat

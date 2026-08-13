@@ -127,23 +127,20 @@ class MqttSubscribe extends Command
             $this->info("Saved SOS event and notifications in database.");
         } 
         elseif ($status === 'SOS_DEACTIVATED') {
-            // Resolve all active SOS events
-            $activeSosEvents = SosEvent::where('status', 'active')->get();
+            // Ambil data SOS aktif untuk notifikasi Telegram
+            $activeSos = SosEvent::where('status', 'active')->orderBy('id_sos', 'desc')->first();
 
-            if ($activeSosEvents->isNotEmpty()) {
+            if ($activeSos) {
                 // Kirim notifikasi Telegram selesai CUKUP 1 KALI saja
-                $firstSos = $activeSosEvents->first();
-                \App\Services\TelegramService::resolveSosAlert($device, $firstSos);
-
-                // Update semua kejadian SOS aktif menjadi resolved
-                foreach ($activeSosEvents as $sos) {
-                    $sos->update([
-                        'status' => 'resolved',
-                        'resolved_at' => now()
-                    ]);
-                }
-                $this->info("Marked active SOS events as resolved.");
+                \App\Services\TelegramService::resolveSosAlert($device, $activeSos);
             }
+
+            // Direct SQL Update: Paksa SEMUA kejadian SOS aktif menjadi resolved secara instan
+            SosEvent::where('status', 'active')->update([
+                'status' => 'resolved',
+                'resolved_at' => now()
+            ]);
+            $this->info("Marked all active SOS events as resolved.");
         } 
         elseif ($status === 'PROXIMITY_ALARM' || $status === 'DISTANCE_UPDATE') {
             $distance = isset($data['distance']) ? $data['distance'] : 0;
