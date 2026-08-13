@@ -83,6 +83,13 @@ class MqttSubscribe extends Command
         $status = $data['status'];
 
         if ($status === 'SOS_ACTIVE') {
+            // Cegah notifikasi darurat ganda jika SOS sudah aktif di database
+            $alreadyActive = SosEvent::where('status', 'active')->exists();
+            if ($alreadyActive) {
+                $this->info("Kejadian SOS sudah aktif di database. Mengabaikan notifikasi duplikat.");
+                return;
+            }
+
             // Get latest GPS position from logs if available
             $latestGps = GpsLog::where('id_device', $device->id_device)
                 ->orderBy('recorded_at', 'desc')
