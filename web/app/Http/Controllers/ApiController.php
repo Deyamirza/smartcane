@@ -380,15 +380,9 @@ class ApiController extends Controller
 
 
             else {
-
-
-
                 $events = SosEvent::where(
-
                     'id_device',
-
                     $device->id_device
-
                 )
                 ->where(
                     'status',
@@ -396,37 +390,22 @@ class ApiController extends Controller
                 )
                 ->get();
 
-
-
-
-                foreach($events as $sos){
-
-
+                if ($events->isNotEmpty()) {
+                    $firstSos = $events->first();
                     \App\Services\TelegramService::resolveSosAlert(
-
                         $device,
-
-                        $sos
-
+                        $firstSos
                     );
 
-
-
-                    $sos->update([
-
-                        'status'=>'resolved',
-
-                        'resolved_at'=>now()
-
-                    ]);
-
+                    foreach($events as $sos){
+                        $sos->update([
+                            'status'=>'resolved',
+                            'resolved_at'=>now()
+                        ]);
+                    }
                 }
 
-
-
                 $response['logged'][]='sos_deactivated';
-
-
             }
 
 
