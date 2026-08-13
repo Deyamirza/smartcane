@@ -20,6 +20,14 @@ class TelegramService
      */
     public static function sendSosAlert(Device $device, $latitude, $longitude, $sosId)
     {
+        // Proteksi fisik: Kunci cache 5 detik untuk mencegah notifikasi Telegram ganda
+        $lockKey = 'telegram_sos_alert_lock_' . $device->id_device;
+        if (\Illuminate\Support\Facades\Cache::has($lockKey)) {
+            Log::info("Notifikasi Telegram SOS Darurat duplikat diblokir oleh Cache Lock.");
+            return null;
+        }
+        \Illuminate\Support\Facades\Cache::put($lockKey, true, 5);
+
         $token = env('TELEGRAM_BOT_TOKEN');
         $chatId = env('TELEGRAM_CHAT_ID');
 
@@ -73,6 +81,14 @@ class TelegramService
      */
     public static function resolveSosAlert(Device $device, SosEvent $sos)
     {
+        // Proteksi fisik: Kunci cache 5 detik untuk mencegah notifikasi Telegram SOS Selesai ganda
+        $lockKey = 'telegram_sos_resolve_lock_' . $device->id_device;
+        if (\Illuminate\Support\Facades\Cache::has($lockKey)) {
+            Log::info("Notifikasi Telegram SOS Selesai duplikat diblokir oleh Cache Lock.");
+            return false;
+        }
+        \Illuminate\Support\Facades\Cache::put($lockKey, true, 5);
+
         $token = env('TELEGRAM_BOT_TOKEN');
         $chatId = env('TELEGRAM_CHAT_ID');
 
