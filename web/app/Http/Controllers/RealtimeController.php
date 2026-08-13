@@ -19,7 +19,7 @@ class RealtimeController extends Controller
 
         $payload = [];
 
-        $device = Device::where('status', 'active')->first();
+        $device = Device::where('status', 'active')->first() ?? Device::first();
         if ($device) {
             // 1. Check for new Sensor Log
             $newSensor = SensorLog::where('id_device', $device->id_device)
@@ -69,8 +69,8 @@ class RealtimeController extends Controller
 
             $latestSensor = SensorLog::where('id_device', $device->id_device)->orderBy('recorded_at', 'desc')->first();
             $latestGps = GpsLog::where('id_device', $device->id_device)->orderBy('recorded_at', 'desc')->first();
-            $activeSos = SosEvent::where('id_device', $device->id_device)->where('status', 'active')->first();
-            $latestSos = SosEvent::where('id_device', $device->id_device)->orderBy('id_sos', 'desc')->first();
+            $activeSos = SosEvent::where('status', 'active')->first();
+            $latestSos = SosEvent::orderBy('id_sos', 'desc')->first();
             
             // Calculate device connection state (online if active in last 60 seconds)
             $isOnline = false;

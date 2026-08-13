@@ -321,3 +321,30 @@
     @endif
 
 @endsection
+
+@section('scripts')
+<script>
+    // Realtime Auto-Sync untuk Halaman Status SOS
+    let isCurrentlyActive = {{ $sosEvents->where('status', 'active')->count() > 0 ? 'true' : 'false' }};
+
+    function syncSosPageRealtime() {
+        fetch("{{ route('realtime.stream') }}")
+            .then(res => res.json())
+            .then(res => {
+                const isSosActiveNow = res.data && res.data.currentState && res.data.currentState.sos_status === 'Aktif';
+                // Jika status di database berubah (misal tombol di tongkat dipencet), auto-reload halaman
+                if (isSosActiveNow !== isCurrentlyActive) {
+                    window.location.reload();
+                } else {
+                    setTimeout(syncSosPageRealtime, 2000);
+                }
+            })
+            .catch(() => {
+                setTimeout(syncSosPageRealtime, 4000);
+            });
+    }
+
+    // Jalankan polling setiap 2 detik
+    setTimeout(syncSosPageRealtime, 2000);
+</script>
+@endsection
