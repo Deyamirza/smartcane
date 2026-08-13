@@ -3,7 +3,6 @@
 #include <WiFiManager.h>  
 #include <PubSubClient.h> 
 #include <TinyGPS++.h>
-#include <HTTPClient.h>
 
 // --- Definisi Pin Sensor Ultrasonik Dual HC-SR04 ---
 // Sensor 1 (Bawah / Jangkauan Area Tanah)
@@ -11,7 +10,7 @@ const int trigPinBawah = 5;
 const int echoPinBawah = 18;
 float distanceBawahCm = 400.0;
 
-// Sensor 2 (Tengah / Jangkauan Area Dada & Kepala)
+// Sensor 2 (Tengah / Jangkauan Area pinggang )
 const int trigPinTengah = 19;
 const int echoPinTengah = 23;
 float distanceTengahCm = 400.0;
@@ -71,6 +70,27 @@ float readDistanceCm(int trigPin, int echoPin) {
   return duration * 0.0343 / 2.0;
 }
 
+// Fungsi callback untuk menerima perintah nirkabel dari Web Dashboard (misal: Matikan SOS)
+void mqttCallback(char* topic, byte* payload, unsigned int length) {
+  String message = "";
+  for (unsigned int i = 0; i < length; i++) {
+    message += (char)payload[i];
+  }
+  Serial.print("[MQTT RECEIVED] Topik: ");
+  Serial.print(topic);
+  Serial.print(" | Pesan: ");
+  Serial.println(message);
+
+  if (String(topic) == "esp32/tracker/commands") {
+    if (message.indexOf("RESOLVE_SOS") >= 0 || message.indexOf("SOS_DEACTIVATED") >= 0) {
+      sosActive = false;
+      digitalWrite(buzzerPin, LOW);
+      digitalWrite(vibeMotorPin, LOW);
+      Serial.println(">>> SOS DITANGANI: Mode SOS dimatikan otomatis dari Web Dashboard! <<<");
+    }
+  }
+}
+
 // Fungsi pembantu untuk mengelola koneksi MQTT di latar belakang (background)
 void checkMQTTConnection() {
   if (!mqttClient.connected()) {
@@ -80,6 +100,7 @@ void checkMQTTConnection() {
       String clientId = "ESP32Client-" + String(WiFi.macAddress());
       if (mqttClient.connect(clientId.c_str())) {
         Serial.println("CONNECTED!");
+        mqttClient.subscribe("esp32/tracker/commands");
       } else {
         Serial.print("failed, rc=");
         Serial.println(mqttClient.state());
@@ -119,35 +140,49 @@ void setup() {
   }
 
   mqttClient.setServer(mqttServer, mqttPort);
+  mqttClient.setCallback(mqttCallback);
 }
 
 void loop() {
   // ====================================================
-  // KONDISI 1: KONTROLLER TOMBOL SOS (PRIORITAS TERTINGGI)
+  // KONDISI 1: KONTROLLER TOMBOL SOS (STABIL & ANTI-BOUNCE)
   // ====================================================
-  bool currentButtonReading = digitalRead(buttonPin);
-  if (currentButtonReading != lastButtonState) {
-    lastDebounceTime = millis();
+  static bool lastStableState = HIGH;
+  static bool lastRawReading = HIGH;
+  static unsigned long lastBounceTime = 0;
+
+  bool currentReading = digitalRead(buttonPin);
+  if (currentReading != lastRawReading) {
+    lastBounceTime = millis();
+    lastRawReading = currentReading;
   }
 
-  if ((millis() - lastDebounceTime) > debounceDelay) {
-    static bool buttonPressed = false;
-    if (currentButtonReading == LOW && !buttonPressed) {
-      sosActive = !sosActive; 
-      buttonPressed = true;
-      Serial.print("SOS TOGGLED: ");
-      Serial.println(sosActive ? "ACTIVE" : "DISABLED");
+  if ((millis() - lastBounceTime) > 100) { // Debounce 100ms
+    if (currentReading != lastStableState) {
+      lastStableState = currentReading;
 
-      // Pengiriman peringatan ke cloud (MQTT) di background
-      if (WiFi.status() == WL_CONNECTED && mqttClient.connected()) {
-        String payload = sosActive ? "{\"status\":\"SOS_ACTIVE\"}" : "{\"status\":\"SOS_DEACTIVATED\"}";
-        mqttClient.publish(topicAlerts, payload.c_str());
+      // Terpicu tepat 1 kali saat tombol baru dipencet (transisi HIGH ke LOW)
+      if (lastStableState == LOW) {
+        sosActive = !sosActive; 
+        Serial.print("SOS TOGGLED: ");
+        Serial.println(sosActive ? "ACTIVE" : "DISABLED");
+
+        // Pengiriman peringatan ke cloud (MQTT) di background
+        if (WiFi.status() == WL_CONNECTED) {
+          if (!mqttClient.connected()) {
+            String clientId = "ESP32Client-" + String(WiFi.macAddress());
+            mqttClient.connect(clientId.c_str());
+          }
+          if (mqttClient.connected()) {
+            String payload = sosActive ? "{\"status\":\"SOS_ACTIVE\"}" : "{\"status\":\"SOS_DEACTIVATED\"}";
+            mqttClient.publish(topicAlerts, payload.c_str());
+            Serial.print("Published MQTT Alert: ");
+            Serial.println(payload);
+          }
+        }
       }
-    } else if (currentButtonReading == HIGH) {
-      buttonPressed = false;
     }
   }
-  lastButtonState = currentButtonReading;
 
   // ====================================================
   // KONDISI 2: SAMPLING SENSOR ULTRASONIK DUAL (PEMBACAAN BERURUTAN)
