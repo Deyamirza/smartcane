@@ -69,7 +69,8 @@ class RealtimeController extends Controller
 
             $latestSensor = SensorLog::where('id_device', $device->id_device)->orderBy('recorded_at', 'desc')->first();
             $latestGps = GpsLog::where('id_device', $device->id_device)->orderBy('recorded_at', 'desc')->first();
-            $latestSos = SosEvent::where('id_device', $device->id_device)->orderBy('triggered_at', 'desc')->first();
+            $activeSos = SosEvent::where('id_device', $device->id_device)->where('status', 'active')->first();
+            $latestSos = SosEvent::where('id_device', $device->id_device)->orderBy('id_sos', 'desc')->first();
             
             // Calculate device connection state (online if active in last 60 seconds)
             $isOnline = false;
@@ -88,8 +89,8 @@ class RealtimeController extends Controller
                 'obstacle' => $latestSensor ? $latestSensor->obstacle_detected : 'no',
                 'latitude' => $latestGps ? $latestGps->latitude : -6.200000,
                 'longitude' => $latestGps ? $latestGps->longitude : 106.816666,
-                'sos_status' => ($latestSos && $latestSos->status === 'active') ? 'Aktif' : 'Tidak Aktif',
-                'sos_id' => $latestSos ? $latestSos->id_sos : null,
+                'sos_status' => $activeSos ? 'Aktif' : 'Tidak Aktif',
+                'sos_id' => $activeSos ? $activeSos->id_sos : ($latestSos ? $latestSos->id_sos : null),
                 'is_online' => $isOnline,
                 'time' => $latestSensor ? date('H:i:s', strtotime($latestSensor->recorded_at)) : ($latestGps ? date('H:i:s', strtotime($latestGps->recorded_at)) : 'N/A'),
                 'date' => $latestSensor ? date('d M Y', strtotime($latestSensor->recorded_at)) : ($latestGps ? date('d M Y', strtotime($latestGps->recorded_at)) : 'N/A'),
