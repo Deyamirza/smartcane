@@ -626,7 +626,7 @@
     let lastSosId = {{ $latestSos ? $latestSos->id_sos : 0 }};
 
     function pollRealtimeData() {
-        const url = `{{ route('realtime.stream') }}?lastSensorId=${lastSensorId}&lastGpsId=${lastGpsId}&lastSosId=${lastSosId}`;
+        const url = `{{ route('realtime.stream') }}?lastSensorId=${lastSensorId}&lastGpsId=${lastGpsId}&lastSosId=${lastSosId}&_t=${Date.now()}`;
         
         fetch(url)
             .then(response => response.json())

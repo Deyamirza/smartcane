@@ -328,7 +328,7 @@
     let isCurrentlyActive = {{ $sosEvents->where('status', 'active')->count() > 0 ? 'true' : 'false' }};
 
     function syncSosPageRealtime() {
-        fetch("{{ route('realtime.stream') }}")
+        fetch("{{ route('realtime.stream') }}?_t=" + Date.now())
             .then(res => res.json())
             .then(res => {
                 const isSosActiveNow = res.data && res.data.currentState && res.data.currentState.sos_status === 'Aktif';
